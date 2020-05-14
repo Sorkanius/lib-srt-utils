@@ -34,7 +34,6 @@ def get_query(attrs_values: typing.List[typing.Tuple[str, str]]):
 class IObject(ABC):
     """
     Object interface.
-
     Object here represents 1) a single application, e.g., tshark or any test
     application like srt-live-transmit, srt-xtransmit, etc.; or 2) a hublet,
     or 3) whatever we might need to run in future setups.
@@ -50,36 +49,33 @@ class IObject(ABC):
         # where to store the object results should be present, otherwise it's None.
         self.dirpath = None
         self.filepath = None
-
+        # Objects that represent network conditions, such as Netem, need this parameter set to True in order to have
+        # a different behaviour, since they are not processes
+        self.network_condition = None
 
     def __str__(self):
         return f'{self.name}'
-
 
     @classmethod
     @abstractmethod
     def from_config(cls, config: dict):
         """
         Create `IObject` instance from config.
-
         Attributes:
             config:
                 Object config.
-
         Config examples are provided in interface implementations.
         """
         pass
-
 
     @abstractmethod
     def make_args(self):
         """
         Make and return the list of arguments to start the object via
-        `LocalRunner` runner. The examples can be found in interface 
+        `LocalRunner` runner. The examples can be found in interface
         implemenations.
         """
         pass
-
 
     @abstractmethod
     def make_str(self):
@@ -94,19 +90,17 @@ class IObject(ABC):
 class Tshark(IObject):
 
     def __init__(
-        self,
-        path: str,
-        interface: str,
-        port: str,
-        dirpath: str,
-        prefix: typing.Optional[str]=None
+            self,
+            path: str,
+            interface: str,
+            port: str,
+            dirpath: str,
+            prefix: typing.Optional[str]=None
     ):
         """
         An object for `tshark` application.
-
         Command example:
         tshark -i en0 -f "udp port 4200" -s 1500 -w _results/tshark-trace-file.pcapng
-
         Attributes:
             path:
                 Path to tshark application.
@@ -135,11 +129,11 @@ class Tshark(IObject):
 
         self.dirpath = pathlib.Path(dirpath)
         self.filepath = self.dirpath / filename
-
+        self.network_condition = False
 
     @classmethod
     def from_config(cls, config: dict):
-        """ 
+        """
         Config Example:
             config = {
                 'path': 'tshark',               # Path to tshark application
@@ -157,41 +151,33 @@ class Tshark(IObject):
             config.get('prefix')
         )
 
-
     def make_args(self):
         """
         Command
         tshark -i en0 -f "udp port 4200" -s 1500 -w _results/tshark-trace-file.pcapng
-
-        transforms to the following list of arguments 
+        transforms to the following list of arguments
         ['tshark', '-i', 'en0', '-f', 'udp port 4200', '-s', '1500', '-w', '_results/tshark-trace-file.pcapng']
-
         to run through `LocalRunner` based on Python `subprocess` module.
         """
         return [
-            self.path, 
-            '-i', self.interface, 
-            '-f', f'udp port {self.port}', 
-            '-s', '1500', 
+            self.path,
+            '-i', self.interface,
+            '-f', f'udp port {self.port}',
+            '-s', '1500',
             '-w', str(self.filepath)
         ]
-
 
     def make_str(self):
         """
         Command
         ssh -t -o BatchMode=yes -o ConnectTimeout=10 msharabayko@137.116.228.51
         'tshark -i en0 -f "udp port 4200" -s 1500 -w _results/tshark-trace-file.pcapng'
-
         transforms to the following list of arguments
         ['ssh', '-t', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=10', 'msharabayko@137.116.228.51',
         'tshark -i en0 -f "udp port 4200" -s 1500 -w _results/tshark-trace-file.pcapng']
-
         when running through `RemoteRunner` based on Python `subprocess` module.
-
         Here we construct and return only the command string
         'tshark -i en0 -f "udp port 4200" -s 1500 -w _results/tshark-trace-file.pcapng'
-
         SSH related arguments are added on top of that in `RemoteRunner` class.
         """
         args = [f'"{arg}"' if ' ' in arg else arg for arg in self.make_args()]
@@ -202,26 +188,24 @@ class Tshark(IObject):
 class SrtXtransmit(IObject):
 
     def __init__(
-        self,
-        type: str,
-        path: str,
-        port: str,
-        host: str='',
-        attrs_values: typing.Optional[typing.List[typing.Tuple[str, str]]]=None,
-        options_values: typing.Optional[typing.List[typing.Tuple[str, str]]]=None,
-        statsdir: typing.Optional[str]=None,
-        statsfreq: typing.Optional[str]=None,
-        prefix: typing.Optional[str]=None
+            self,
+            type: str,
+            path: str,
+            port: str,
+            host: str='',
+            attrs_values: typing.Optional[typing.List[typing.Tuple[str, str]]]=None,
+            options_values: typing.Optional[typing.List[typing.Tuple[str, str]]]=None,
+            statsdir: typing.Optional[str]=None,
+            statsfreq: typing.Optional[str]=None,
+            prefix: typing.Optional[str]=None
     ):
         """
         An object for `srt-xtransmit` test application.
         Source code: https://github.com/maxsharabayko/srt-xtransmit.
-
         Command example:
-        projects/srt-xtransmit/_build/bin/srt-xtransmit receive 
+        projects/srt-xtransmit/_build/bin/srt-xtransmit receive
         "srt://:4200?transtype=live&rcvbuf=1000000000&sndbuf=1000000000"
         --msgsize 1316 --statsfile _results/srt-xtransmit-stats-rcv.csv --statsfreq 100
-
         Attributes:
             type:
                 Type of the application as per `SrtApplicationType`.
@@ -253,6 +237,7 @@ class SrtXtransmit(IObject):
         self.attrs_values = attrs_values
         self.options_values = options_values
         self.statsfreq = statsfreq
+        self.network_condition = False
 
         if statsdir is not None:
 
@@ -267,7 +252,6 @@ class SrtXtransmit(IObject):
 
             self.dirpath = pathlib.Path(statsdir)
             self.filepath = self.dirpath / filename
-
 
     @classmethod
     def from_config(cls, config: dict):
@@ -290,7 +274,6 @@ class SrtXtransmit(IObject):
                 'statsfreq': '100',                                         # Frequency of SRT statistics collection, in ms, optional
                 'prefix': '1-rcv1'                                          # Prefix to construct output filename, optional
             }
-
         Suggested additional fields:
         'mode' to reflect whether it is listener, caller, or rendezvous mode
         and be able to perform additional config validations.
@@ -307,20 +290,17 @@ class SrtXtransmit(IObject):
             config.get('prefix')
         )
 
-
     def make_args(self):
         """
         Command
-        projects/srt-xtransmit/_build/bin/srt-xtransmit receive 
+        projects/srt-xtransmit/_build/bin/srt-xtransmit receive
         "srt://:4200?transtype=live&rcvbuf=1000000000&sndbuf=1000000000"
         --msgsize 1316 --statsfile _results/srt-xtransmit-stats-rcv.csv --statsfreq 100
-
-        transforms to the following list of arguments 
+        transforms to the following list of arguments
         ['projects/srt-xtransmit/_build/bin/srt-xtransmit', 'receive',
         'srt://:4200?transtype=live&rcvbuf=1000000000&sndbuf=1000000000',
         '--msgsize', '1316', '--statsfile', '_results/srt-xtransmit-stats-rcv.csv',
         '--statsfreq', '100']
-
         to run through `LocalRunner` based on Python `subprocess` module.
         """
         args = []
@@ -349,7 +329,6 @@ class SrtXtransmit(IObject):
 
         return args
 
-
     def make_str(self):
         """
         Command
@@ -357,22 +336,92 @@ class SrtXtransmit(IObject):
         'projects/srt-xtransmit/_build/bin/srt-xtransmit receive
         "srt://:4200?transtype=live&rcvbuf=1000000000&sndbuf=1000000000"
         --msgsize 1316 --statsfile _results/srt-xtransmit-stats-rcv.csv --statsfreq 100'
-
         transforms to the following list of arguments
         ['ssh', '-tt', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=10', 'msharabayko@137.116.228.51',
         'projects/srt-xtransmit/_build/bin/srt-xtransmit receive
         "srt://:4200?transtype=live&rcvbuf=1000000000&sndbuf=1000000000"
         --msgsize 1316 --statsfile _results/srt-xtransmit-stats-rcv.csv --statsfreq 100']
-
         when running through `RemoteRunner` based on Python `subprocess` module.
-
         Here we construct and return only the command string
         'projects/srt-xtransmit/_build/bin/srt-xtransmit receive
         "srt://:4200?transtype=live&rcvbuf=1000000000&sndbuf=1000000000"
         --msgsize 1316 --statsfile _results/srt-xtransmit-stats-rcv.csv --statsfreq 100'
-
         SSH related arguments are added on top of that in `RemoteRunner` class.
         """
         args = [f'"{arg}"' if arg.startswith('srt://') else arg for arg in self.make_args()]
+        args_str = ' '.join(args)
+        return args_str
+
+
+class Netem(IObject):
+
+    def __init__(
+            self,
+            interface: str,
+            rules: typing.List[str]
+    ):
+        """
+        An object for `tc netem` application.
+        Command example:
+        sudo tc qdisc add dev en0  root  netem  delay 100ms loss 10
+        Attributes:
+            interface:
+                Interface to apply the network conditions.
+            rules:
+                List of filters that represent the network conditions
+        For more information about the tc netem filters visit: http://man7.org/linux/man-pages/man8/tc-netem.8.html
+        """
+
+        super().__init__('netem')
+        self.filepath = None
+        self.interface = interface
+        self.rules = rules
+        self.network_condition = True
+
+    @classmethod
+    def from_config(cls, config: dict):
+        """
+        Config Example:
+            config = {
+                'interface': 'en0',             # Interface to apply the network conditions.
+                'rules': [
+                    'delay 100ms',
+                    'loss 10'
+                ]
+            }
+        """
+        return cls(
+            config['interface'],
+            config['rules']
+        )
+
+    def make_args(self):
+        """
+        Command
+        sudo tc qdisc add dev en0  root  netem  delay 100ms loss 10
+        transforms to the following list of arguments
+        ['sudo', 'tc', 'qdisc', 'add', 'dev', 'en0', 'root', 'netem', 'delay', '100ms', 'loss', '10']
+        to run through `LocalRunner` based on Python `subprocess` module.
+        """
+        args = ['sudo', 'tc', 'qdisc', 'add', 'dev', self.interface, 'root', 'netem']
+
+        for rule in self.rules:
+            args += rule.split(' ')
+
+        return args
+
+    def make_str(self):
+        """
+        Command
+        sudo tc qdisc add dev en0  root  netem  delay 100ms loss 10
+        transforms to the following list of arguments
+        ['ssh', '-tt', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=10', 'msharabayko@137.116.228.51',
+        'sudo', 'tc', 'qdisc', 'add', 'dev', 'en0', 'root', 'netem', 'delay', '100ms', 'loss', '10']
+        when running through `RemoteRunner` based on Python `subprocess` module.
+        Here we construct and return only the command string
+        'sudo tc qdisc add dev en0  root  netem  delay 100ms loss 10'
+        SSH related arguments are added on top of that in `RemoteRunner` class.
+        """
+        args = self.make_args()
         args_str = ' '.join(args)
         return args_str
