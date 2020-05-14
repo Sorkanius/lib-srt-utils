@@ -51,7 +51,6 @@ class IObject(ABC):
         self.filepath = None
         # Objects that represent network conditions, such as Netem, need this parameter set to True in order to have
         # a different behaviour, since they are not processes
-        self.network_condition = None
 
     def __str__(self):
         return f'{self.name}'
@@ -129,7 +128,6 @@ class Tshark(IObject):
 
         self.dirpath = pathlib.Path(dirpath)
         self.filepath = self.dirpath / filename
-        self.network_condition = False
 
     @classmethod
     def from_config(cls, config: dict):
@@ -237,7 +235,6 @@ class SrtXtransmit(IObject):
         self.attrs_values = attrs_values
         self.options_values = options_values
         self.statsfreq = statsfreq
-        self.network_condition = False
 
         if statsdir is not None:
 
@@ -358,7 +355,8 @@ class Netem(IObject):
     def __init__(
             self,
             interface: str,
-            rules: typing.List[str]
+            rules: typing.List[str],
+            # clear_command: typing.List[str]
     ):
         """
         An object for `tc netem` application.
@@ -376,7 +374,7 @@ class Netem(IObject):
         self.filepath = None
         self.interface = interface
         self.rules = rules
-        self.network_condition = True
+        self.clear_command = ['sudo', 'tc', 'qdisc', 'del', 'dev', self.interface, 'root']
 
     @classmethod
     def from_config(cls, config: dict):

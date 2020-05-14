@@ -533,7 +533,7 @@ class LocalConditionRunner(IObjectRunner):
         self.obj = obj
         self.collect_results_path = collect_results_path
         self.args = self.obj.make_args()
-        self.condition = Condition(self.args)
+        self.condition = Condition(self.args, obj)
 
     @property
     def status(self):
@@ -565,7 +565,6 @@ class LocalConditionRunner(IObjectRunner):
 
     def stop(self):
         self.condition.stop()
-        pass
 
     def collect_results(self):
         pass

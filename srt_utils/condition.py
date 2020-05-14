@@ -6,6 +6,7 @@ import typing
 
 from srt_utils.enums import Status
 from srt_utils.exceptions import SrtUtilsException
+from srt_utils.objects import IObject
 
 
 logger = logging.getLogger(__name__)
@@ -16,7 +17,7 @@ SSH_CONNECTION_TIMEOUT = 10
 
 class Condition:
 
-    def __init__(self, args: typing.List[str], via_ssh: bool=False):
+    def __init__(self, args: typing.List[str], obj: IObject, via_ssh: bool=False):
         """
         Helper class to work with Python `subprocess` module.
 
@@ -28,13 +29,13 @@ class Condition:
                 SSH related ones.
         """
         self.args = args
-        # TODO: change via_ssh to timeouts (for start, for stop - depending on object and
         # whether it is started via ssh or locally)
         self.via_ssh = via_ssh
         self.process = None
         self.id = None
         self.is_started = False
         self.is_stopped = False
+        self.obj = obj
 
     def __str__(self):
         return f'process id {self.id}'
@@ -129,4 +130,27 @@ class Condition:
         self.id = ''
 
     def stop(self):
-        self.is_stopped = True
+        try:
+            if sys.platform == 'win32':
+                self.process = subprocess.run(
+                    self.obj.clear_command,
+                    stdin =subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    universal_newlines=False,
+                    creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
+                    bufsize=1
+                )
+            else:
+                self.process = subprocess.run(
+                    self.obj.clear_command,
+                    stdin =subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    bufsize=1
+                )
+                self.is_stopped = True
+        except OSError as error:
+            raise SrtUtilsException(
+                f'Condition has not been cleared: {self.args}. {error}'
+            )
