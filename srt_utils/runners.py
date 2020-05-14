@@ -39,6 +39,8 @@ class SimpleFactory:
             runner = object_runners.LocalRunner.from_config(obj, runner_config)
         elif runner_type == 'remote-runner':
             runner = object_runners.RemoteRunner.from_config(obj, runner_config)
+        elif runner_type == 'local-condition-runner':
+            runner = object_runners.LocalConditionRunner.from_config(obj, runner_config)
         else:
             print('No matching runner found')
 

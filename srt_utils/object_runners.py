@@ -12,6 +12,7 @@ from srt_utils.enums import Status
 from srt_utils.exceptions import SrtUtilsException
 from srt_utils.objects import IObject
 from srt_utils.process import Process
+from srt_utils.condition import Condition
 
 
 logger = logging.getLogger(__name__)
@@ -509,3 +510,62 @@ class RemoteRunner(IObjectRunner):
                 f'Object results have not been collected: {self.obj.filepath}'
                 f'. Exception occured ({error.__class__.__name__}): {error}. '
             )
+
+
+class LocalConditionRunner(IObjectRunner):
+
+    def __init__(
+            self,
+            obj: IObject,
+            collect_results_path: pathlib.Path=pathlib.Path('.')
+    ):
+        """
+        Runner used to run the object locally using Python
+        `subprocess` library.
+
+        Attributes:
+            obj:
+                `IObject` object to run.
+            collect_results_path:
+                `pathlib.Path` directory path where the results produced by
+                the object should be copied once the object finishes its work.
+        """
+        self.obj = obj
+        self.collect_results_path = collect_results_path
+        self.args = self.obj.make_args()
+        self.condition = Condition(self.args)
+
+    @property
+    def status(self):
+        status, _ = self.condition.status
+        return status
+
+    @staticmethod
+    def _create_directory(dirpath: pathlib.Path):
+        pass
+
+    @classmethod
+    def from_config(cls, obj: IObject, config: dict={}):
+        """
+        Config Example:
+            config = {
+                'collect_results_path': '_results_exp'      # optional
+            }
+        """
+        if 'collect_results_path' in config:
+            return cls(obj, pathlib.Path(config['collect_results_path']))
+
+        return cls(obj)
+
+    def start(self):
+        logger.info(f'Starting object on-premises: {self.obj}')
+        logger.info(f'Arguments for LocalRunner: {self.obj.make_args()}')
+
+        self.condition.start()
+
+    def stop(self):
+        self.condition.stop()
+        pass
+
+    def collect_results(self):
+        pass
